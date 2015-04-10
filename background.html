@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script>
+        chrome.browserAction.onClicked.addListener(function(tab) {
+	    init();
+            chrome.tabs.create({
+                url: "https://www.reddit.com/r/thebutton/"
+            });
+        });
+
+        function updateIcon(s) {
+            chrome.browserAction.setIcon({
+                imageData: getData(s)
+            });
+        }
+
+        function getColor(s) {
+            var bcol = "#820080";
+            if (s < 12) bcol = '#e50000';
+            else if (s < 22) bcol = '#e59500';
+            else if (s < 32) bcol = '#e5d900';
+            else if (s < 42) bcol = '#02be01';
+            else if (s < 52) bcol = '#0083c7';
+            return bcol;
+        }
+
+        function getData(s) {
+            var bcol = getColor(s);
+            if (document.getElementById('canvas') == null) {
+                var elm = document.createElement("CANVAS");
+                elm.id = "canvas";
+                elm.style.position = "fixed";
+                elm.style.top = "0";
+                elm.style.left = "0";
+                elm.style["z-index"] = "9999999";
+                document.body.appendChild(elm);
+            }
+
+            var canvas = document.getElementById('canvas');
+            var context = canvas.getContext('2d');
+
+            canvas.width = 19;
+            canvas.height = 19;
+            context.fillStyle = "rgb(200, 200, 200)";
+            context.fillRect(0, 0, s, s);
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            context.font = "11px Arial";
+            drawSegment(canvas, context, s);
+            context.fillStyle = "#000000";
+            context.fillText(s + "", 10, 10);
+
+            context.fillStyle = "#FFFFFF";
+            context.fillText(s + "", 9, 9);
+            return context.getImageData(0, 0, 19, 19);
+        }
+
+        function drawSegment(canvas, context, s) {
+            context.save();
+            var centerX = Math.floor(canvas.width / 2);
+            var centerY = Math.floor(canvas.height / 2);
+            radius = Math.floor(canvas.width / 2);
+
+            var endingAngle = 1.5 * Math.PI;
+            var arcSize = (60 - s) * Math.PI / 60 * 2;
+            var startingAngle = endingAngle + arcSize;
+
+            context.beginPath();
+            context.moveTo(centerX, centerY);
+            context.arc(centerX, centerY, radius,
+                startingAngle, endingAngle);
+            context.closePath();
+
+            context.fillStyle = getColor(s);
+            context.fill();
+
+            context.restore();
+
+            //drawSegmentLabel(canvas, context, i);
+        }
+
+        var wsUri = null;
+        //var wsUri = "wss://wss.redditmedia.com/thebutton?h=0260ab44f3edd0923cdb5efa4f082ff4915e6d9b&e=1428721059";
+        var output;
+
+        function init() {
+            console.log("t");
+            output = document.getElementById("output");
+
+            loadXMLDoc("https://www.reddit.com/r/thebutton/", function(d) {
+                wsUri = "wss:" + d.split("wss:")[1].split("\"")[0];
+                testWebSocket();
+            });
+        }
+
+        function testWebSocket() {
+            websocket = new WebSocket(wsUri);
+            websocket.onopen = function(evt) {
+                onOpen(evt)
+            };
+            websocket.onclose = function(evt) {
+                onClose(evt)
+            };
+            websocket.onmessage = function(evt) {
+                onMessage(evt)
+            };
+            websocket.onerror = function(evt) {
+                onError(evt)
+            };
+        }
+
+        function onOpen(evt) {
+            writeToScreen("CONNECTED");
+            doSend("Rock it with HTML5 WebSocket");
+        }
+
+        function onClose(evt) {
+            writeToScreen("DISCONNECTED");
+	    init();
+        }
+
+        function onMessage(evt) {
+            console.log(JSON.parse(evt.data).payload.seconds_left);
+            updateIcon(JSON.parse(evt.data).payload.seconds_left-1);
+            //  writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data + '</span>');
+
+        }
+
+        function onError(evt) {
+            writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data);
+        }
+
+        function doSend(message) {
+            writeToScreen("SENT: " + message);
+            websocket.send(message);
+        }
+
+        function writeToScreen(message) {
+            console.log(message);
+        }
+        window.addEventListener("load", init, false);
+
+        function loadXMLDoc(url, cback) {
+            var xmlhttp;
+            if (window.XMLHttpRequest) { // code for IE7+, Firefox, Chrome, Opera, Safari
+                xmlhttp = new XMLHttpRequest();
+            } else { // code for IE6, IE5
+                xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+            }
+            xmlhttp.onreadystatechange = function() {
+                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                    cback(xmlhttp.responseText);
+                }
+            }
+            xmlhttp.open("GET", url, true);
+            xmlhttp.send();
+        }
+    </script>
+</head>
+
+<body>
+    <!--<iframe src="http://localhost:8080/chemclip.html"></iframe>-->
+</body>
+
+</html>
